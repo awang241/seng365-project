@@ -24,6 +24,20 @@ exports.findByToken = async function(token) {
     return result;
 };
 
+exports.checkTokenExists = async function (token) {
+    let result = await exports.findByToken(token);
+    return result.length > 0;
+};
+
+exports.authenticateToken = async function (token, user_id) {
+    let actual = await exports.getToken(user_id);
+    if (actual.length === 0) {
+        return false;
+    } else {
+        return actual[0].auth_token === token;
+    }
+};
+
 exports.getToken = async function(user_id) {
     const conn = await db.getPool().getConnection();
     const query = 'SELECT auth_token FROM User WHERE user_id = ?';
@@ -53,6 +67,32 @@ exports.insert = async function(name, email, password, city, country) {
     conn.release();
 };
 
-exports.alter = async function() {
-
+exports.alter = async function(id, name, email, password, city, country) {
+    const conn = await db.getPool().getConnection();
+    let query = 'UPDATE User SET name = name ';
+    let params = [];
+    if (name !== undefined) {
+        query += ', name = ? ';
+        params.push(name);
+    }
+    if (email !== undefined) {
+        query += ', email = ? ';
+        params.push(email);
+    }
+    if (password !== undefined) {
+        query += ', password = ? ';
+        params.push(password);
+    }
+    if (city !== undefined) {
+        query += ', city = ? ';
+        params.push(city);
+    }
+    if (country !== undefined) {
+        query += ', country = ? ';
+        params.push(country);
+    }
+    query += ' WHERE user_id = ?';
+    params.push(id);
+    await conn.query(query, params);
+    conn.release();
 };

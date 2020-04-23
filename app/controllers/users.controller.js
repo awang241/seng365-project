@@ -1,11 +1,7 @@
 const model = require('../models/users.model');
 const auth = require('../middleware/passwords.middleware');
+const responses = require('./responses');
 const emailRegex = /(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)])/;
-
-
-exports.checkToken = async function (token, user_id) {
-
-};
 
 exports.login = async function(req, res) {
     try {
@@ -17,8 +13,9 @@ exports.login = async function(req, res) {
             return res.status(400).send('Password field is missing');
         }
         const result = await model.findByEmail(email);
-        const actualPassword = result[0].password;
-        if (result.length === 0 || password !== actualPassword) {
+        if (result.length === 0) {
+            return res.status(400).send('Invalid email or password');
+        } else if (result[0].password !== password) {
             return res.status(400).send('Invalid email or password');
         } else if (result[0].auth_token !== null) {
             return res.status(400).send('Already logged in');
@@ -60,8 +57,12 @@ exports.create = async function(req, res) {
         } else if (req.body.password === undefined || req.body.password.length < 1) {
             return res.status(400).send("Password field is missing");
         }
-        if (city !== undefined) {city = null}
-        if (country !== undefined) {country = null}
+        const result = await model.findByEmail(email);
+        if (result.length > 0) {
+            return res.status(400).send("Email already in use");
+        }
+        if (city === undefined) {city = null}
+        if (country === undefined) {country = null}
         await model.insert(req.body.name, req.body.email, req.body.password, city, country);
         return res.status(201).end();
     } catch (err) {
@@ -71,9 +72,51 @@ exports.create = async function(req, res) {
 };
 
 exports.read = async function(req, res) {
-
+    try {
+        let id = req.params.id;
+        let token = req.get('X-Authorization');
+        const tokenExists = await model.checkTokenExists(token);
+        if (!tokenExists) {
+            return res.status(401).send("Could not authenticate token")
+        }
+        const result = await model.findById(id);
+        if (result.length === 0) {
+            return res.status(404).send("No user with that ID exists");
+        } else {
+            const body = new responses.User(result[0].name, result[0].city, result[0].country, result[0].email);
+            return res.status(200).json(body);
+        }
+    } catch (e) {
+        console.log(e);
+        return res.status(500).send('Internal server error')
+    }
 };
 
 exports.update = async function(req, res) {
+    try {
+        let id = req.params.id;
+        let token = req.get('X-Authorization');
+        const authenticated = await model.authenticateToken(token, id);
+        if (!authenticated) {
+            return res.status(401).send("Could not authenticate token")
+        }
 
+        if (req.body.email !== undefined) {
+            const emailCheck = await model.findByEmail(req.body.email );
+            if (emailCheck.length > 0) {
+                return res.status(400).send("Email already in use");
+            }
+        }
+
+        const result = await model.findById(id);
+        if (req.body.password !== undefined && result[0].password !== req.body.currentPassword) {
+            return res.status(403).send("Correct current password is needed for password change")
+        }
+
+        await model.alter(id, req.body.name,req.body.email,req.body.password,req.body.city, req.body.country);
+        return res.status(200).end();
+    } catch (e) {
+        console.log(e);
+        return res.status(500).send('Internal server error')
+    }
 };

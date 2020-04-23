@@ -1,5 +1,4 @@
 const db = require('../../config/db');
-const fs = require('mz/fs');
 
 function toSQLDatetime(date) {
     return date.toISOString().slice(0, 19).replace('T', ' ');
@@ -24,7 +23,7 @@ exports.getAll = async function(author_id, category_id, pattern, sortBy){
     }
 
     if (category_id != null) {
-        query += ' AND category_id = ?';
+        query += ' AND C.category_id = ?';
         params.push(category_id);
     }
 

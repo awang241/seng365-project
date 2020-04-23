@@ -6,4 +6,11 @@ module.exports = function (app) {
 
     app.route(app.rootUrl + '/users/logout')
         .post(users.logout);
+
+    app.route(app.rootUrl + '/users/register')
+        .post(users.create);
+
+    app.route(app.rootUrl + '/users/:id')
+        .get(users.read)
+        .patch(users.update);
 };

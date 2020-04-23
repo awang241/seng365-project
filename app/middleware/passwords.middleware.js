@@ -12,6 +12,8 @@ exports.generateToken = function() {
     return crypto.randomBytes(config.tokenLength).toString('hex')
 };
 
+
+
 exports.hashPassword = function(password) {
     const salt = crypto.randomBytes(config.saltLength);
     const hash = crypto.pbkdf2Sync(password, salt, config.iterations, config.keyLength, config.digest);

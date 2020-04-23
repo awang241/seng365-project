@@ -12,8 +12,8 @@ function filterRawPetitions(rawPetitions) {
     const petitionOverviews = [];
     for (let i = 0; i < rawPetitions.length; i++) {
         let rawPetition = rawPetitions[i];
-        let petitionOverview = new PetitionOverview(rawPetition.petition_id, rawPetition.title, rawPetition.author_name,
-                                                    rawPetition.category_name, rawPetition.signature_count);
+        let petitionOverview = new PetitionOverview(rawPetition.petition_id, rawPetition.title, rawPetition.category_name,
+            rawPetition.author_name, rawPetition.signature_count);
         petitionOverviews.push(petitionOverview);
     }
     return petitionOverviews;
@@ -112,7 +112,7 @@ exports.read = async function(req, res){
             }
         }
     } catch (err) {
-        console.log(err)
+        console.log(err);
         return res.status(500).send("Internal Server Error")
     }
 };
