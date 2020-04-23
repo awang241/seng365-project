@@ -1,17 +1,5 @@
 const petition = require('../models/petitions.model');
 
-function sortPetitionsByTitle(a, b) {
-    var titleA = a.title.toLowerCase();
-    var titleB = b.title.toLowerCase();
-    if (titleA < titleB) {
-        return -1;
-    } else if (titleA > titleB) {
-        return 1;
-    } else {
-        return 0;
-    }
-}
-
 function parseIntIfDefined(string, defaultValue=undefined) {
     if (string === undefined) {
         return defaultValue;
@@ -40,7 +28,7 @@ function PetitionOverview(id, title, category, author, signatureCount) {
 }
 
 exports.list = async function(req, res){
-    var searchRequest = {
+    const searchRequest = {
         startIndex: parseIntIfDefined(req.query.startIndex, 0),
         count: parseIntIfDefined(req.query.count),
         q: req.query.q,
@@ -84,15 +72,49 @@ exports.list = async function(req, res){
 };
 
 exports.listCategories = async function(req, res){
-    return null;
+    try {
+        let result = await petition.getCategories();
+        return res.status(200).send(result);
+    } catch (err) {
+        return res.status(500).send('Internal Server Error')
+    }
 };
 
 exports.create = async function(req, res){
-    return null;
+    try {
+        if (typeof req.body.title !== "string" || req.body.title.length === 0) {
+            return res.status(400).send('Title must be a string of non-zero length');
+        } else if (typeof req.body.description !== "string") {
+            return res.status(400).send('Description must be a string');
+        } else if (!(Number.isInteger(req.body.categoryId)) || req.body.categoryId < 0) {
+            return res.status(400).send('Category ID must be a positive integer');
+        } else if (req.body.closingDate !== undefined && new Date(req.body.closingDate).toString() === "Invalid Date") {
+            return res.status(400).send('Date string formatted incorrectly');
+        }
+        return res.status(201).send('TODO');
+    } catch (err) {
+        return res.status(500).send('Internal Server Error');
+    }
+
 };
 
 exports.read = async function(req, res){
-    return null;
+    try {
+        const id = req.params.id;
+        if (!Number.isInteger(parseInt(id))) {
+            return res.status(400).send("Petition ID must be an integer")
+        } else {
+            let result = await petition.getOne(id);
+            if (result.length === 1) {
+                return res.status(200).send(result[0]);
+            } else {
+                return res.status(404).send("No petition with that ID in the database");
+            }
+        }
+    } catch (err) {
+        console.log(err)
+        return res.status(500).send("Internal Server Error")
+    }
 };
 
 exports.update = async function(req, res){

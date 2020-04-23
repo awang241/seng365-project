@@ -1,6 +1,10 @@
 const db = require('../../config/db');
 const fs = require('mz/fs');
 
+function toSQLDatetime(date) {
+    return date.toISOString().slice(0, 19).replace('T', ' ');
+}
+
 exports.getAll = async function(author_id, category_id, pattern, sortBy){
     console.log("Attempting to retrieve petitions from database");
 
@@ -48,23 +52,44 @@ exports.getOne = async function(petition_id){
     console.log(`Attempting to retrieve petition with id ${petition_id} from database`);
 
     const conn = await db.getPool().getConnection();
-    let query = 'SELECT * FROM Petition WHERE petition_id = ?';
-
+    const selectFieldsFrag = ' SELECT Petition.petition_id, title, C.name AS category, signature_count, description, ' +
+        ' U.name AS author_name, author_id, city, country, created_date, closing_date FROM Petition ';
+    const joinSignaturesFrag = ' JOIN (SELECT petition_id, COUNT(*) AS signature_count FROM Signature GROUP BY petition_id) ' +
+        'AS SigCounts ON Petition.petition_id = SigCounts.petition_id ';
+    const joinAuthorsFrag =  ' JOIN User U ON author_id = user_id ';
+    const joinCategoriesFrag =  ' JOIN Category C ON Petition.category_id = C.category_id WHERE Petition.petition_id = ?';
+    let query = selectFieldsFrag + joinSignaturesFrag + joinAuthorsFrag + joinCategoriesFrag;
     const [rows] = await conn.query(query, [petition_id]);
     conn.release();
     return rows;
 };
 
 exports.getCategories = async function() {
-    return null
+    console.log('Attempting to retrieve list of categories from database');
+
+    const conn = await db.getPool().getConnection();
+    let query = 'SELECT * FROM Category';
+
+    const [rows] = await conn.query(query);
+    conn.release();
+    return rows;
 };
 
-exports.insert = async function(authorID, title, description, categoryID) {
+exports.insert = async function(authorID, title, description, categoryID, dateString=undefined) {
     console.log("Attempting to insert petition into database");
 
     const conn = await db.getPool().getConnection();
-    const query = 'INSERT INTO petition (authorID, title, description, categoryID) VALUES (?, ?, ?, ?)';
-    await conn.query(query, [authorID, title, description, categoryID]);
+    const now = toSQLDatetime(new Date(Date.now()));
+    const params = [authorID, title, description, categoryID, now];
+    let query;
+    if (dateString === undefined) {
+        query = 'INSERT INTO Petition (author_id, title, description, category_id, created_date) VALUES (?, ?, ?, ?, ?)';
+    } else {
+        query = 'INSERT INTO Petition (author_id, title, description, category_id, created_date, closing_date) VALUES (?, ?, ?, ?, ?, ?)';
+        const closingDate = toSQLDatetime(new Date(dateString));
+        params.push(closingDate);
+    }
+    await conn.query(query, params);
     conn.release();
 };
 
