@@ -15,10 +15,10 @@ exports.login = async function(req, res) {
         const result = await model.findByEmail(email);
         if (result.length === 0) {
             return res.status(400).send('Invalid email or password');
-        } else if (result[0].password !== password) {
-            return res.status(400).send('Invalid email or password');
         } else if (result[0].auth_token !== null) {
             return res.status(400).send('Already logged in');
+        } else if (!auth.checkPassword(password, result[0].password)) {
+            return res.status(400).send('Invalid email or password');
         } else {
             const id = result[0].user_id;
             const token = auth.generateToken();
@@ -63,7 +63,7 @@ exports.create = async function(req, res) {
         }
         if (city === undefined) {city = null}
         if (country === undefined) {country = null}
-        await model.insert(req.body.name, req.body.email, req.body.password, city, country);
+        await model.insert(req.body.name, req.body.email, auth.hash(req.body.password), city, country);
         return res.status(201).end();
     } catch (err) {
         console.log(err);
