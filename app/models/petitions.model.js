@@ -43,16 +43,6 @@ exports.getAll = async function(author_id, category_id, pattern, sortBy){
     let query = 'SELECT P.petition_id, title, author_id, U.name a_name, C.category_id, C.name c_name, s_count FROM Petition P LEFT JOIN ' +
     '(SELECT petition_id, COUNT(*) s_count FROM Signature GROUP BY petition_id) S ON P.petition_id = S.petition_id ' +
     'JOIN User U ON P.author_id = U.user_id JOIN Category C ON P.category_id = C.category_id WHERE 1 = 1';
-    /*
-    const selectFieldsFrag = ' SELECT Petition.petition_id, title, author_id, AuthorNames.name AS author_name, ' +
-        'C.category_id, C.name AS category_name, signature_count FROM Petition ';
-    const joinSignaturesFrag = ' JOIN (SELECT petition_id, COUNT(*) AS signature_count FROM Signature GROUP BY petition_id) ' +
-        'AS SigCounts ON Petition.petition_id = SigCounts.petition_id ';
-    const joinAuthorsFrag =  ' JOIN (SELECT user_id, name FROM User) AS AuthorNames ON Petition.author_id = AuthorNames.user_id ';
-    const joinCategoriesFrag =  ' JOIN Category C ON Petition.category_id = C.category_id WHERE 1 = 1 ';
-    let query = selectFieldsFrag + joinSignaturesFrag + joinAuthorsFrag + joinCategoriesFrag;
-    */
-
     const params = [];
 
     if (author_id != null) {

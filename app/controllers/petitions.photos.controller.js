@@ -43,7 +43,7 @@ exports.update = async function(req, res) {
     const userID = result[0].user_id;
 
     const petitionRes = await petitions.getOne(petitionID);
-    if (result.length === 0) {
+    if (petitionRes.length === 0) {
         return res.status(404).send("No petition with that ID exists")
     }
     const petition = petitionRes[0];

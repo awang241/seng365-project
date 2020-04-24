@@ -41,7 +41,7 @@ exports.sign = async function(req, res) {
         if (!await petitions.isOpen(petitionID)) {
             return res.status(403).send('Cannot sign closed petitions');
         } else if (await model.haveSigned(petitionID, userID)) {
-            return res.status(400).send('Petition has already been signed');
+            return res.status(403).send('Petition has already been signed');
         } else {
             await model.insert(petitionID, userID);
             return res.status(201).send('Petition signed successfully');
@@ -69,10 +69,10 @@ exports.unsign = async function(req, res) {
         if (!await petitions.isOpen(petitionID)) {
             return res.status(403).send('Cannot unsign closed petitions');
         } else if (!await model.haveSigned(petitionID, userID)) {
-            return res.status(400).send('Petition has not been signed yet');
+            return res.status(403).send('Petition has not been signed yet');
         } else {
             await model.remove(petitionID, userID);
-            return res.status(201).send('Petition unsigned successfully');
+            return res.status(200).send('Petition unsigned successfully');
         }
     } catch (err) {
         console.log(err);

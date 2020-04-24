@@ -24,7 +24,7 @@ exports.findByToken = async function(token) {
     return result;
 };
 
-exports.checkTokenExists = async function (token) {title
+exports.checkTokenExists = async function (token) {
     let result = await exports.findByToken(token);
     return result.length > 0;
 };
@@ -64,7 +64,9 @@ exports.insert = async function(name, email, password, city, country) {
     const conn = await db.getPool().getConnection();
     const query = 'INSERT INTO User (name, email, password, city, country) VALUES (?, ?, ?, ?, ?)';
     await conn.query(query, [name, email, password, city, country]);
+    const result = await conn.query('SELECT LAST_INSERT_ID()');
     conn.release();
+    return result[0][0]['LAST_INSERT_ID()'];
 };
 
 exports.alter = async function(id, name, email, password, city, country) {

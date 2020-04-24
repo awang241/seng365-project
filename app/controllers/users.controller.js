@@ -63,8 +63,8 @@ exports.create = async function(req, res) {
         }
         if (city === undefined) {city = null}
         if (country === undefined) {country = null}
-        await model.insert(req.body.name, req.body.email, auth.hash(req.body.password), city, country);
-        return res.status(201).end();
+        const userId = await model.insert(req.body.name, req.body.email, auth.hash(req.body.password), city, country);
+        return res.status(201).json({userId: userId});
     } catch (err) {
         console.log(err);
         return res.status(500).send("Internal server error")

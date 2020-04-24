@@ -77,7 +77,13 @@ exports.list = async function(req, res){
 exports.listCategories = async function(req, res){
     try {
         let result = await petition.getCategories();
-        return res.status(200).send(result);
+        let categories = [];
+        for (let i = 0; i < result.length; i++) {
+            let raw = result[i];
+            let category = new responses.Category(raw.category_id, raw.name);
+            categories.push(category)
+        }
+        return res.status(200).send(categories);
     } catch (err) {
         return res.status(500).send('Internal Server Error')
     }
