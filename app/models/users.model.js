@@ -24,7 +24,7 @@ exports.findByToken = async function(token) {
     return result;
 };
 
-exports.checkTokenExists = async function (token) {
+exports.checkTokenExists = async function (token) {title
     let result = await exports.findByToken(token);
     return result.length > 0;
 };

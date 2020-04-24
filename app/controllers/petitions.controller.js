@@ -1,4 +1,6 @@
 const petition = require('../models/petitions.model');
+const users = require('../models/users.model');
+const responses = require('./responses');
 
 function parseIntIfDefined(string, defaultValue=undefined) {
     if (string === undefined) {
@@ -12,8 +14,9 @@ function filterRawPetitions(rawPetitions) {
     const petitionOverviews = [];
     for (let i = 0; i < rawPetitions.length; i++) {
         let rawPetition = rawPetitions[i];
-        let petitionOverview = new PetitionOverview(rawPetition.petition_id, rawPetition.title, rawPetition.category_name,
-            rawPetition.author_name, rawPetition.signature_count);
+        if (rawPetition.s_count === null) {rawPetition.s_count = 0;}
+        let petitionOverview = new PetitionOverview(rawPetition.petition_id, rawPetition.title, rawPetition.c_name,
+            rawPetition.a_name, rawPetition.s_count);
         petitionOverviews.push(petitionOverview);
     }
     return petitionOverviews;
@@ -86,13 +89,26 @@ exports.create = async function(req, res){
             return res.status(400).send('Title must be a string of non-zero length');
         } else if (typeof req.body.description !== "string") {
             return res.status(400).send('Description must be a string');
-        } else if (!(Number.isInteger(req.body.categoryId)) || req.body.categoryId < 0) {
-            return res.status(400).send('Category ID must be a positive integer');
-        } else if (req.body.closingDate !== undefined && new Date(req.body.closingDate).toString() === "Invalid Date") {
-            return res.status(400).send('Date string formatted incorrectly');
+        } else if (!await petition.categoryExistsByID(req.body.categoryId)) {
+            return res.status(400).send('Category ID is invalid');
+        } else if (req.body.closingDate !== undefined) {
+            const date = new Date(req.body.closingDate);
+            if (date.toString() === "Invalid Date") {
+                return res.status(400).send('Date string formatted incorrectly');
+            } else if (date.getTime() <= Date.now()) {
+                return res.status(400).send('Closing date must be in the future')
+            }
         }
-        return res.status(201).send('TODO');
+
+        const result = await users.findByToken(req.get('X-Authorization'));
+        if (result.length === 0) {
+            return res.status(401).send("Could not authenticate token");
+        }
+        const authorID = result[0].user_id;
+        const petitionID = await petition.insert(authorID, req.body.title, req.body.description, req.body.categoryId, req.body.closingDate);
+        return res.status(201).send({petitionId: petitionID});
     } catch (err) {
+        console.log(err);
         return res.status(500).send('Internal Server Error');
     }
 
@@ -106,7 +122,7 @@ exports.read = async function(req, res){
         } else {
             let result = await petition.getOne(id);
             if (result.length === 1) {
-                return res.status(200).send(result[0]);
+                return res.status(200).send(new responses.Petition(result[0]));
             } else {
                 return res.status(404).send("No petition with that ID in the database");
             }
@@ -118,9 +134,72 @@ exports.read = async function(req, res){
 };
 
 exports.update = async function(req, res){
-    return null;
+    try {
+        if ((typeof req.body.title !== "string" || req.body.title.length === 0) && req.body.title !== undefined) {
+            return res.status(400).send('Title must be a string of non-zero length');
+        } else if (typeof req.body.description !== "string" && req.body.description !== undefined) {
+            return res.status(400).send('Description must be a string');
+        } else if (!await petition.categoryExistsByID(req.body.categoryId) && req.body.categoryId !== undefined) {
+            return res.status(400).send('Category ID is invalid');
+        } else if (req.body.closingDate !== undefined) {
+            const date = new Date(req.body.closingDate);
+            if (date.toString() === "Invalid Date") {
+                return res.status(400).send('Date string formatted incorrectly');
+            } else if (date.getTime() <= Date.now()) {
+                return res.status(400).send('Closing date must be in the future');
+            }
+        }
+        const petitionID = req.params.id,
+            token = req.get('X-Authorization');
+        const petitions = await petition.getOne(petitionID);
+        if (petitions.length === 0) {
+            return res.status(404).send("No petition with that ID in the database");
+        }
+        const authorID = petitions[0].author_id;
+        const userRes = await users.findByToken(token);
+        if (userRes.length === 0){
+            return res.status(401).send("Could not authenticate token");
+        } else if (userRes[0].user_id !== authorID){
+            return res.status(403).send("Only the author of the petition may update it");
+        }
+
+        if (Date.now() > Date.parse(petitions[0].closing_date)) {
+            return res.status(403).send("Closed petitions cannot be updated");
+        }
+
+        await petition.alter(petitionID, req.body.title, req.body.description, req.body.categoryId, req.body.closingDate);
+        return res.status(200).send('Petition updated successfully')
+    } catch (err) {
+        console.log(err);
+        return res.status(500).send('Internal server error')
+    }
 };
 
 exports.delete = async function(req, res){
-    return null;
+    try {
+        const id = req.params.id;
+        const token = req.get('X-Authorization');
+        const result = await petition.getOne(id);
+        if (result.length === 0) {
+            return res.status(404).send("No petition with that ID in the database");
+        }
+        const userRes = await users.findByToken(token);
+        if (userRes.length === 0) {
+            return res.status(401).send("Could not authenticate token");
+        } else if (userRes[0].user_id !== result[0].author_id) {
+            return res.status(403).send("Only the author of a petition may delete it");
+        }
+        petition.remove(id);
+        return res.status(200).send("Petition deleted");
+    } catch (err) {
+        console.log(err);
+        return res.status(500).send('Internal server error')
+    }
+};
+
+let isUpdateDistinct = function(update, original) {
+    return !((update.title === undefined || update.title === original.title)
+        && (update.description === undefined || update.description === original.description)
+        && (update.categoryID === undefined || update.categoryID === original.category_id)
+        && (update.closingDate === undefined || update.closingDate === original.closing_date))
 };

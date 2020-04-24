@@ -23,7 +23,7 @@ exports.login = async function(req, res) {
             const id = result[0].user_id;
             const token = auth.generateToken();
             await model.setToken(id, token);
-            return res.status(200).json({userID: id, token: token});
+            return res.status(200).json({userId: id, token: token});
         }
     } catch (err) {
         console.log(err);
@@ -57,7 +57,7 @@ exports.create = async function(req, res) {
         } else if (req.body.password === undefined || req.body.password.length < 1) {
             return res.status(400).send("Password field is missing");
         }
-        const result = await model.findByEmail(email);
+        const result = await model.findByEmail(req.body.email);
         if (result.length > 0) {
             return res.status(400).send("Email already in use");
         }
@@ -75,15 +75,16 @@ exports.read = async function(req, res) {
     try {
         let id = req.params.id;
         let token = req.get('X-Authorization');
-        const tokenExists = await model.checkTokenExists(token);
-        if (!tokenExists) {
-            return res.status(401).send("Could not authenticate token")
-        }
+        const authenticated = await model.authenticateToken(token, id);
         const result = await model.findById(id);
         if (result.length === 0) {
             return res.status(404).send("No user with that ID exists");
         } else {
-            const body = new responses.User(result[0].name, result[0].city, result[0].country, result[0].email);
+            let email = undefined;
+            if (authenticated) {
+                email = result[0].email;
+            }
+            const body = new responses.User(result[0].name, result[0].city, result[0].country, email);
             return res.status(200).json(body);
         }
     } catch (e) {
@@ -113,6 +114,10 @@ exports.update = async function(req, res) {
             return res.status(403).send("Correct current password is needed for password change")
         }
 
+        if (!isUpdateDistinct(req.body, result[0])) {
+            return res.status(400).send("Update must edit at least one field")
+        }
+
         await model.alter(id, req.body.name,req.body.email,req.body.password,req.body.city, req.body.country);
         return res.status(200).end();
     } catch (e) {
@@ -120,3 +125,12 @@ exports.update = async function(req, res) {
         return res.status(500).send('Internal server error')
     }
 };
+
+let isUpdateDistinct = function(update, original) {
+    return !((update.name === undefined || update.name === original.name)
+        && (update.email === undefined || update.email === original.email)
+        && (update.password === undefined || update.password === original.password)
+        && (update.city === undefined || update.city === original.city)
+        && (update.country === undefined || update.country === original.country));
+};
+

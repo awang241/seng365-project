@@ -23,17 +23,19 @@ exports.PetitionOverview = function(id, title, category, author, signatureCount)
     this.signatureCount = signatureCount;
 };
 
-exports.Petition = function(overview, descr, author, city, country, startDate, endDate){
-    this.petitionId = overview.petitionId;
-    this.title = overview.title;
-    this.description = descr;
-    this.category = overview.category;
-    this.authorName = author;
-    this.authorCity = city;
-    this.authorCountry = country;
-    this.signatureCount = overview.signatureCount;
-    this.createdDate = startDate;
-    this.closingDate = endDate;
+exports.Petition = function(row){
+    this.petitionId = row.petition_id;
+    this.title = row.title;
+    this.description = row.description;
+    this.category = row.category;
+    this.authorId = row.author_id;
+    this.authorName = row.author_name;
+    this.authorCity = row.city;
+    this.authorCountry = row.country;
+    if (row.signature_count === null) {row.signature_count = 0;}
+    this.signatureCount = row.signature_count;
+    this.createdDate = row.created_date;
+    this.closingDate = row.closing_date;
 };
 
 exports.Category = function(id, name) {
